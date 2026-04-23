@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="庫存管理" />
+<title>庫存管理</title>
+<style>
+  :root {
+    --bg: #faf9f7;
+    --card: #ffffff;
+    --border: #e8e4de;
+    --text: #1a1815;
+    --text2: #6b6560;
+    --text3: #a09a93;
+    --accent: #c9783a;
+    --accent-bg: #fdf1e8;
+    --green: #3a7d52;
+    --green-bg: #eaf4ee;
+    --red: #c0392b;
+    --red-bg: #fdecea;
+    --warn: #b07d1a;
+    --warn-bg: #fef8e7;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Helvetica Neue', sans-serif; font-size: 15px; min-height: 100vh; }
+
+  /* NAV */
+  .nav { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 16px 0; position: sticky; top: 0; z-index: 100; }
+  .nav-title { font-size: 18px; font-weight: 600; color: var(--text); letter-spacing: -0.3px; margin-bottom: 12px; }
+  .nav-tabs { display: flex; gap: 0; }
+  .nav-tab { flex: 1; text-align: center; padding: 9px 4px; font-size: 13px; font-weight: 500; color: var(--text2); border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.15s; }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* PAGES */
+  .page { display: none; padding: 16px; }
+  .page.active { display: block; }
+
+  /* SUMMARY CARDS */
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .sum-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+  .sum-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .sum-val { font-size: 26px; font-weight: 700; letter-spacing: -1px; }
+  .sum-val.green { color: var(--green); }
+  .sum-val.warn { color: var(--warn); }
+  .sum-val.red { color: var(--red); }
+
+  /* DATE BAR */
+  .date-bar { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .date-bar label { font-size: 12px; color: var(--text2); font-weight: 500; white-space: nowrap; }
+  .date-bar input[type=date] { flex: 1; border: none; background: transparent; font-size: 15px; color: var(--text); font-weight: 600; outline: none; }
+  .btn-apply { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-apply:active { opacity: 0.85; }
+
+  /* PRODUCT LIST */
+  .prod-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
+  .prod-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 10px; }
+  .prod-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
+  .badge.ok { background: var(--green-bg); color: var(--green); }
+  .badge.low { background: var(--warn-bg); color: var(--warn); }
+  .badge.zero { background: var(--red-bg); color: var(--red); }
+  .prod-body { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--border); }
+  .prod-cell { padding: 10px 8px; text-align: center; border-right: 1px solid var(--border); }
+  .prod-cell:last-child { border-right: none; }
+  .cell-label { font-size: 10px; color: var(--text3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .cell-val { font-size: 20px; font-weight: 700; color: var(--text); }
+  .cell-val.green { color: var(--green); }
+  .cell-val.warn { color: var(--warn); }
+  .cell-val.red { color: var(--red); }
+  .prod-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border-top: 1px solid var(--border); }
+  .input-wrap { background: var(--card); padding: 8px 10px; }
+  .input-wrap label { font-size: 11px; color: var(--text3); display: block; margin-bottom: 4px; }
+  .input-wrap input { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 16px; font-weight: 600; color: var(--text); background: var(--bg); outline: none; text-align: center; }
+  .input-wrap input:focus { border-color: var(--accent); }
+
+  /* SAFE STOCK EDIT */
+  .safe-edit-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; border-top: 1px solid var(--border); background: var(--bg); }
+  .safe-edit-row label { font-size: 11px; color: var(--text3); }
+  .safe-edit-row input { width: 70px; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 14px; font-weight: 600; text-align: center; background: var(--card); color: var(--text); outline: none; }
+  .safe-edit-row input:focus { border-color: var(--accent); }
+
+  /* BUTTONS */
+  .btn-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .btn-sec { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px; font-size: 13px; font-weight: 500; color: var(--text2); cursor: pointer; text-align: center; }
+  .btn-sec:active { background: var(--border); }
+  .btn-primary { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); padding: 11px; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
+  .btn-primary:active { opacity: 0.85; }
+
+  /* HISTORY */
+  .history-entry { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
+  .history-date-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; cursor: pointer; }
+  .history-date { font-size: 15px; font-weight: 600; }
+  .history-arrow { color: var(--text3); font-size: 12px; transition: transform 0.2s; }
+  .history-arrow.open { transform: rotate(90deg); }
+  .history-detail { display: none; border-top: 1px solid var(--border); }
+  .history-detail.open { display: block; }
+  .history-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; padding: 8px 14px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .history-row:last-child { border-bottom: none; }
+  .history-row.head { font-size: 10px; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; background: var(--bg); }
+  .history-row span:not(:first-child) { text-align: right; }
+  .h-warn { color: var(--warn); font-weight: 600; }
+  .h-red { color: var(--red); font-weight: 600; }
+
+  .empty-state { text-align: center; padding: 48px 24px; color: var(--text3); }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-text { font-size: 14px; }
+
+  /* ADD PRODUCT */
+  .add-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; }
+  .add-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text2); }
+  .field-group { margin-bottom: 10px; }
+  .field-group label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 4px; font-weight: 500; }
+  .field-group input { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 16px; color: var(--text); background: var(--bg); outline: none; }
+  .field-group input:focus { border-color: var(--accent); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .section-title { font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 8px; }
+
+  /* FILTER */
+  .filter-row { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 2px; }
+  .filter-btn { padding: 6px 14px; border-radius: 99px; border: 1px solid var(--border); background: var(--card); font-size: 12px; font-weight: 500; color: var(--text2); cursor: pointer; white-space: nowrap; }
+  .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <div class="nav-title">🥐 庫存管理</div>
+  <div class="nav-tabs">
+    <div class="nav-tab active" onclick="switchTab('today')">今日進銷貨</div>
+    <div class="nav-tab" onclick="switchTab('history')">歷史紀錄</div>
+    <div class="nav-tab" onclick="switchTab('settings')">商品設定</div>
+  </div>
+</div>
+
+<!-- TODAY PAGE -->
+<div class="page active" id="page-today">
+  <div style="height:12px"></div>
+
+  <div class="summary-grid">
+    <div class="sum-card"><div class="sum-label">品項總數</div><div class="sum-val" id="s-total">0</div></div>
+    <div class="sum-card"><div class="sum-label">庫存正常</div><div class="sum-val green" id="s-ok">0</div></div>
+    <div class="sum-card"><div class="sum-label">低於安全庫存</div><div class="sum-val warn" id="s-low">0</div></div>
+    <div class="sum-card"><div class="sum-label">庫存歸零</div><div class="sum-val red" id="s-zero">0</div></div>
+  </div>
+
+  <div class="date-bar">
+    <label>日期</label>
+    <input type="date" id="today-date" />
+    <button class="btn-apply" onclick="applyAll()">套用</button>
+  </div>
+
+  <div class="filter-row">
+    <div class="filter-btn active" onclick="setFilter('all',this)">全部</div>
+    <div class="filter-btn" onclick="setFilter('zero',this)">庫存歸零</div>
+    <div class="filter-btn" onclick="setFilter('low',this)">低於安全庫存</div>
+    <div class="filter-btn" onclick="setFilter('ok',this)">正常</div>
+  </div>
+
+  <div id="prod-list"></div>
+
+  <div class="btn-row" style="margin-top:4px;">
+    <div class="btn-sec" onclick="clearToday()">清除今日數量</div>
+    <div class="btn-primary" onclick="exportCSV()">匯出 CSV</div>
+  </div>
+</div>
+
+<!-- HISTORY PAGE -->
+<div class="page" id="page-history">
+  <div style="height:12px"></div>
+  <div class="btn-row">
+    <div class="btn-primary" style="flex:1" onclick="exportAllCSV()">匯出全部紀錄 CSV</div>
+  </div>
+  <div id="history-list"></div>
+</div>
+
+<!-- SETTINGS PAGE -->
+<div class="page" id="page-settings">
+  <div style="height:12px"></div>
+  <div class="add-section">
+    <h3>新增品項</h3>
+    <div class="field-group"><label>品項名稱</label><input type="text" id="new-name" placeholder="例：草莓塔" /></div>
+    <div class="field-row">
+      <div class="field-group"><label>初始庫存</label><input type="number" id="new-stock" placeholder="0" min="0" /></div>
+      <div class="field-group"><label>安全庫存</label><input type="number" id="new-safe" placeholder="5" min="0" /></div>
+    </div>
+    <button class="btn-primary" style="width:100%" onclick="addProduct()">+ 新增</button>
+  </div>
+
+  <div class="section-title">安全庫存設定</div>
+  <div id="settings-list"></div>
+
+  <div style="height:16px"></div>
+  <div class="btn-sec" style="text-align:center;color:var(--red);border-color:var(--red-bg);" onclick="confirmReset()">清除所有歷史紀錄</div>
+</div>
+
+<script>
+const PRODUCTS_KEY = 'inv_products';
+const HISTORY_KEY = 'inv_history';
+
+let currentFilter = 'all';
+
+const defaultProducts = [
+  {id:1, name:"迷你空塔殼", stock:0, safeStock:20},
+  {id:2, name:"迷你小塔", stock:0, safeStock:20},
+  {id:3, name:"經典檸檬塔", stock:0, safeStock:10},
+  {id:4, name:"靜岡抹茶塔", stock:0, safeStock:10},
+  {id:5, name:"白巧克力莓果塔", stock:0, safeStock:10},
+  {id:6, name:"莓果黑巧克力塔", stock:0, safeStock:10},
+  {id:7, name:"雙層濃郁生巧克力塔", stock:0, safeStock:10},
+  {id:8, name:"黑蘭姆生巧克力塔", stock:0, safeStock:10},
+  {id:9, name:"夏日熱戀", stock:0, safeStock:10},
+  {id:10, name:"乳酪塔殼", stock:0, safeStock:15},
+  {id:11, name:"抹茶紫芋泥塔", stock:0, safeStock:10},
+  {id:12, name:"濃郁古典巧克力", stock:0, safeStock:10},
+  {id:13, name:"原味三角乳酪", stock:0, safeStock:10},
+  {id:14, name:"濃郁可可三角乳酪", stock:0, safeStock:10},
+  {id:15, name:"4吋酸檸乳酪", stock:0, safeStock:5},
+  {id:16, name:"6吋酸檸乳酪", stock:0, safeStock:5},
+  {id:17, name:"8吋酸檸乳酪", stock:0, safeStock:3},
+  {id:18, name:"4吋經典原味乳酪", stock:0, safeStock:5},
+  {id:19, name:"6吋經典原味乳酪", stock:0, safeStock:5},
+  {id:20, name:"8吋經典原味乳酪", stock:0, safeStock:3},
+  {id:21, name:"4吋濃郁可可乳酪", stock:0, safeStock:5},
+  {id:22, name:"6吋濃郁可可乳酪", stock:0, safeStock:5},
+  {id:23, name:"8吋濃郁可可乳酪", stock:0, safeStock:3},
+  {id:24, name:"6吋濃郁古典巧克力蛋糕", stock:0, safeStock:3},
+  {id:25, name:"6吋奶酒巧克力慕斯蛋糕", stock:0, safeStock:3},
+  {id:26, name:"四吋天使蛋糕", stock:0, safeStock:5},
+  {id:27, name:"六吋天使蛋糕", stock:0, safeStock:5},
+  {id:28, name:"八吋天使蛋糕", stock:0, safeStock:3},
+  {id:29, name:"十吋天使蛋糕", stock:0, safeStock:2},
+  {id:30, name:"茶香泡芙", stock:0, safeStock:15},
+  {id:31, name:"當季水果千層", stock:0, safeStock:5},
+];
+
+let nextId = 32;
+let todayInputs = {};
+
+function loadProducts() {
+  const saved = localStorage.getItem(PRODUCTS_KEY);
+  if (saved) {
+    const arr = JSON.parse(saved);
+    nextId = Math.max(...arr.map(p=>p.id)) + 1;
+    return arr;
+  }
+  localStorage.setItem(PRODUCTS_KEY, JSON.stringify(defaultProducts));
+  return defaultProducts.map(p=>({...p}));
+}
+
+function saveProducts(products) {
+  localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
+}
+
+function loadHistory() {
+  const saved = localStorage.getItem(HISTORY_KEY);
+  return saved ? JSON.parse(saved) : {};
+}
+
+function saveHistory(history) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0,10);
+}
+
+document.getElementById('today-date').value = todayStr();
+
+function getIn(id) { return parseInt(document.getElementById('in_'+id)?.value)||0; }
+function getOut(id) { return parseInt(document.getElementById('out_'+id)?.value)||0; }
+function calcRemain(p) { return Math.max(0, p.stock + getIn(p.id) - getOut(p.id)); }
+
+function statusOf(remain, safe) {
+  if (remain===0) return 'zero';
+  if (remain<safe) return 'low';
+  return 'ok';
+}
+
+function renderToday() {
+  const products = loadProducts();
+  let ok=0, low=0, zero=0;
+  const list = document.getElementById('prod-list');
+  list.innerHTML = '';
+
+  products.forEach(p => {
+    const remain = p.stock + (todayInputs['in_'+p.id]||0) - (todayInputs['out_'+p.id]||0);
+    const safeRemain = Math.max(0, remain);
+    const st = statusOf(safeRemain, p.safeStock);
+    if (st==='ok') ok++; else if (st==='low') low++; else zero++;
+
+    if (currentFilter!=='all' && currentFilter!==st) return;
+
+    const badgeMap = {ok:'ok',low:'low',zero:'zero'};
+    const labelMap = {ok:'正常',low:'低於安全庫存',zero:'庫存歸零'};
+    const valClass = {ok:'green',low:'warn',zero:'red'}[st];
+
+    const div = document.createElement('div');
+    div.className = 'prod-card';
+    div.innerHTML = `
+      <div class="prod-header">
+        <div class="prod-name">${p.name}</div>
+        <div class="badge ${badgeMap[st]}" id="badge_${p.id}">${labelMap[st]}</div>
+      </div>
+      <div class="prod-body">
+        <div class="prod-cell">
+          <div class="cell-label">目前庫存</div>
+          <div class="cell-val">${p.stock}</div>
+        </div>
+        <div class="prod-cell">
+          <div class="cell-label">安全庫存</div>
+          <div class="cell-val">${p.safeStock}</div>
+        </div>
+        <div class="prod-cell">
+          <div class="cell-label">結餘</div>
+          <div class="cell-val ${valClass}" id="remain_${p.id}">${safeRemain}</div>
+        </div>
+      </div>
+      <div class="prod-inputs">
+        <div class="input-wrap">
+          <label>今日進貨</label>
+          <input type="number" inputmode="numeric" min="0" id="in_${p.id}" value="${todayInputs['in_'+p.id]||''}" placeholder="0" oninput="onInput(${p.id})" />
+        </div>
+        <div class="input-wrap">
+          <label>今日銷貨</label>
+          <input type="number" inputmode="numeric" min="0" id="out_${p.id}" value="${todayInputs['out_'+p.id]||''}" placeholder="0" oninput="onInput(${p.id})" />
+        </div>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+
+  document.getElementById('s-total').textContent = products.length;
+  document.getElementById('s-ok').textContent = ok;
+  document.getElementById('s-low').textContent = low;
+  document.getElementById('s-zero').textContent = zero;
+}
+
+function onInput(id) {
+  const products = loadProducts();
+  const p = products.find(x=>x.id===id);
+  if (!p) return;
+  const inVal = parseInt(document.getElementById('in_'+id)?.value)||0;
+  const outVal = parseInt(document.getElementById('out_'+id)?.value)||0;
+  todayInputs['in_'+id] = inVal;
+  todayInputs['out_'+id] = outVal;
+  const remain = Math.max(0, p.stock + inVal - outVal);
+  const st = statusOf(remain, p.safeStock);
+  const valClass = {ok:'green',low:'warn',zero:'red'}[st];
+  const labelMap = {ok:'正常',low:'低於安全庫存',zero:'庫存歸零'};
+  const badgeMap = {ok:'ok',low:'low',zero:'zero'};
+  const rem = document.getElementById('remain_'+id);
+  const badge = document.getElementById('badge_'+id);
+  if (rem) { rem.textContent = remain; rem.className = 'cell-val '+valClass; }
+  if (badge) { badge.textContent = labelMap[st]; badge.className = 'badge '+badgeMap[st]; }
+
+  let ok=0, low=0, zero=0;
+  products.forEach(pp => {
+    const inV = todayInputs['in_'+pp.id]||0;
+    const outV = todayInputs['out_'+pp.id]||0;
+    const r = Math.max(0, pp.stock + inV - outV);
+    const s = statusOf(r, pp.safeStock);
+    if (s==='ok') ok++; else if (s==='low') low++; else zero++;
+  });
+  document.getElementById('s-ok').textContent = ok;
+  document.getElementById('s-low').textContent = low;
+  document.getElementById('s-zero').textContent = zero;
+}
+
+function applyAll() {
+  const products = loadProducts();
+  const date = document.getElementById('today-date').value;
+  const history = loadHistory();
+  const entries = [];
+
+  products.forEach(p => {
+    const inQty = todayInputs['in_'+p.id]||0;
+    const outQty = todayInputs['out_'+p.id]||0;
+    const remain = Math.max(0, p.stock + inQty - outQty);
+    if (inQty>0 || outQty>0) {
+      entries.push({ name:p.name, before:p.stock, inQty, outQty, after:remain, safeStock:p.safeStock });
+    }
+    p.stock = remain;
+  });
+
+  if (entries.length===0) { alert('尚未填入任何進銷貨數量'); return; }
+
+  if (!history[date]) history[date] = [];
+  history[date] = history[date].concat(entries);
+
+  saveProducts(products);
+  saveHistory(history);
+  todayInputs = {};
+  renderToday();
+  alert('✓ 套用成功！庫存已更新');
+}
+
+function clearToday() {
+  todayInputs = {};
+  renderToday();
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderToday();
+}
+
+function exportCSV() {
+  const products = loadProducts();
+  const date = document.getElementById('today-date').value;
+  let csv = '\uFEFF日期,品項名稱,期初庫存,今日進貨,今日銷貨,結餘,安全庫存,狀態\n';
+  const labelMap = {ok:'正常',low:'低於安全庫存',zero:'庫存歸零'};
+  products.forEach(p => {
+    const inQ = todayInputs['in_'+p.id]||0;
+    const outQ = todayInputs['out_'+p.id]||0;
+    const remain = Math.max(0, p.stock + inQ - outQ);
+    const st = labelMap[statusOf(remain, p.safeStock)];
+    csv += `${date},${p.name},${p.stock},${inQ},${outQ},${remain},${p.safeStock},${st}\n`;
+  });
+  downloadCSV(csv, `庫存_${date}.csv`);
+}
+
+function exportAllCSV() {
+  const history = loadHistory();
+  const dates = Object.keys(history).sort();
+  if (dates.length===0) { alert('尚無歷史紀錄'); return; }
+  let csv = '\uFEFF日期,品項名稱,期初庫存,進貨,銷貨,結餘,安全庫存\n';
+  dates.forEach(date => {
+    history[date].forEach(e => {
+      csv += `${date},${e.name},${e.before},${e.inQty},${e.outQty},${e.after},${e.safeStock}\n`;
+    });
+  });
+  downloadCSV(csv, `庫存歷史紀錄.csv`);
+}
+
+function downloadCSV(csv, filename) {
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+function renderHistory() {
+  const history = loadHistory();
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+  const dates = Object.keys(history).sort().reverse();
+  if (dates.length===0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">尚無歷史紀錄<br>套用進銷貨後會自動儲存</div></div>';
+    return;
+  }
+  dates.forEach(date => {
+    const entries = history[date];
+    const div = document.createElement('div');
+    div.className = 'history-entry';
+    const rows = entries.map(e => {
+      const st = statusOf(e.after, e.safeStock);
+      const cls = st==='zero'?'h-red':st==='low'?'h-warn':'';
+      return `<div class="history-row"><span>${e.name}</span><span>+${e.inQty}</span><span>-${e.outQty}</span><span class="${cls}">${e.after}</span></div>`;
+    }).join('');
+    div.innerHTML = `
+      <div class="history-date-row" onclick="toggleHistory(this)">
+        <div class="history-date">${date}</div>
+        <div class="history-arrow">▶</div>
+      </div>
+      <div class="history-detail">
+        <div class="history-row head"><span>品項</span><span>進貨</span><span>銷貨</span><span>結餘</span></div>
+        ${rows}
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function toggleHistory(el) {
+  const arrow = el.querySelector('.history-arrow');
+  const detail = el.nextElementSibling;
+  arrow.classList.toggle('open');
+  detail.classList.toggle('open');
+}
+
+function renderSettings() {
+  const products = loadProducts();
+  const list = document.getElementById('settings-list');
+  list.innerHTML = '';
+  products.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'prod-card';
+    div.innerHTML = `
+      <div class="safe-edit-row">
+        <span style="font-size:14px;font-weight:500;color:var(--text)">${p.name}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label>安全庫存</label>
+          <input type="number" inputmode="numeric" min="0" value="${p.safeStock}" onchange="updateSafe(${p.id},this.value)" style="width:70px" />
+        </div>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function updateSafe(id, val) {
+  const products = loadProducts();
+  const p = products.find(x=>x.id===id);
+  if (p) { p.safeStock = Math.max(0, parseInt(val)||0); saveProducts(products); renderToday(); }
+}
+
+function addProduct() {
+  const name = document.getElementById('new-name').value.trim();
+  if (!name) { alert('請輸入品項名稱'); return; }
+  const stock = parseInt(document.getElementById('new-stock').value)||0;
+  const safe = parseInt(document.getElementById('new-safe').value)||5;
+  const products = loadProducts();
+  products.push({ id: nextId++, name, stock, safeStock: safe });
+  saveProducts(products);
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-stock').value = '';
+  document.getElementById('new-safe').value = '';
+  renderToday();
+  renderSettings();
+  alert('✓ 新增成功');
+}
+
+function confirmReset() {
+  if (confirm('確定要清除所有歷史紀錄嗎？此動作無法復原。')) {
+    localStorage.removeItem(HISTORY_KEY);
+    renderHistory();
+    alert('歷史紀錄已清除');
+  }
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  const idx = {today:0,history:1,settings:2}[tab];
+  document.querySelectorAll('.nav-tab')[idx].classList.add('active');
+  if (tab==='history') renderHistory();
+  if (tab==='settings') renderSettings();
+}
+
+renderToday();
+</script>
+</body>
+</html>
